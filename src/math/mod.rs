@@ -1,2 +1,2 @@
-mod field;
-mod lagrange;
+pub mod field;
+pub mod lagrange;
