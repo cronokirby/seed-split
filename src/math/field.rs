@@ -94,6 +94,47 @@ impl<const N: usize> ops::Mul for BPoly<N> {
     }
 }
 
+#[derive(Clone, Copy, Debug)]
+pub struct GF128(BPoly<2>);
+
+impl ops::Add for GF128 {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        let mut out = self;
+        out += rhs;
+        out
+    }
+}
+
+impl ops::AddAssign for GF128 {
+    fn add_assign(&mut self, rhs: Self) {
+        self.0 += rhs.0;
+    }
+}
+
+impl ops::Neg for GF128 {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        self
+    }
+}
+
+impl ops::Sub for GF128 {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        self + -rhs
+    }
+}
+
+impl ops::SubAssign for GF128 {
+    fn sub_assign(&mut self, rhs: Self) {
+        *self += -rhs;
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
