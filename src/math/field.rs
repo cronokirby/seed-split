@@ -24,6 +24,20 @@ struct BPoly<const N: usize> {
     data: [u64; N],
 }
 
+impl<const N: usize> ops::Index<usize> for BPoly<N> {
+    type Output = u64;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.data[index]
+    }
+}
+
+impl<const N: usize> ops::IndexMut<usize> for BPoly<N> {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.data[index]
+    }
+}
+
 impl<const N: usize> BPoly<N> {
     fn zero() -> Self {
         Self { data: [0; N] }
@@ -50,7 +64,7 @@ impl<const N: usize> BPoly<N> {
 impl<const N: usize> ops::AddAssign for BPoly<N> {
     fn add_assign(&mut self, rhs: Self) {
         for i in 0..N {
-            self.data[i] ^= rhs.data[i]
+            self[i] ^= rhs[i]
         }
     }
 }
@@ -74,7 +88,7 @@ impl<const N: usize> ops::Mul for BPoly<N> {
 
         for k in (0..64).rev() {
             for j in 0..N {
-                if ((self.data[j] >> k) & 1) != 1 {
+                if ((self[j] >> k) & 1) != 1 {
                     continue;
                 }
                 // Hopefully all of this can get inlined
