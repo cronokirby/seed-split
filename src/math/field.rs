@@ -36,11 +36,11 @@ impl<const N: usize> BPoly<N> {
         Self { data }
     }
 
-    fn times_z(&mut self, start: u64) -> u64 {
+    fn shift(&mut self, start: u64, count: usize) -> u64 {
         let mut top = start;
         for x in &mut self.data {
-            let new_top = *x >> 63;
-            *x = (*x << 1) | top;
+            let new_top = *x >> (64 - count);
+            *x = (*x << count) | top;
             top = new_top;
         }
         top
@@ -86,8 +86,8 @@ impl<const N: usize> ops::Mul for BPoly<N> {
                 out_hi.data[..j].copy_from_slice(&view.data[(N - j)..]);
             }
             if k != 0 {
-                let top = out_lo.times_z(0);
-                out_hi.times_z(top);
+                let top = out_lo.shift(0, 1);
+                out_hi.shift(top, 1);
             }
         }
         (out_hi, out_lo)
