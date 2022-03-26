@@ -109,9 +109,20 @@ impl<const N: usize> ops::Mul for BPoly<N> {
 }
 
 #[derive(Clone, Copy, Debug)]
+// Only implement equality for tests. This is to avoid the temptation to introduce
+// a timing leak through equality comparison.
+#[cfg_attr(test, derive(PartialEq))]
 pub struct GF128(BPoly<2>);
 
 impl GF128 {
+    pub fn one() -> Self {
+        Self(BPoly::one())
+    }
+
+    pub fn zero() -> Self {
+        Self(BPoly::zero())
+    }
+
     fn reduce((hi, mut lo): (BPoly<2>, BPoly<2>)) -> Self {
         // The irreducible polynomial is z^128 + z^7 + z^2 + z + 1
         for i in 0..2 {
@@ -192,23 +203,30 @@ mod test {
         }
     }
 
+    // We can generate an arbitrary element just by choosing random bits
+    prop_compose! {
+        fn arb_gf128()(data in any::<[u64;2]>()) -> GF128 {
+            GF128(BPoly { data })
+        }
+    }
+
     proptest! {
         #[test]
-        fn test_addition_commutative(a in arb_bpoly(), b in arb_bpoly()) {
+        fn test_bpoly_addition_commutative(a in arb_bpoly(), b in arb_bpoly()) {
             assert_eq!(a + b, b + a)
         }
     }
 
     proptest! {
         #[test]
-        fn test_addition_associative(a in arb_bpoly(), b in arb_bpoly(), c in arb_bpoly()) {
+        fn test_bpoly_addition_associative(a in arb_bpoly(), b in arb_bpoly(), c in arb_bpoly()) {
             assert_eq!(a + (b + c), (a + b) + c);
         }
     }
 
     proptest! {
         #[test]
-        fn test_add_zero_identity(a in arb_bpoly()) {
+        fn test_bpoly_add_zero_identity(a in arb_bpoly()) {
             let zero = BPoly::zero();
             assert_eq!(a + zero, a);
             assert_eq!(zero + a, a);
@@ -217,29 +235,60 @@ mod test {
 
     proptest! {
         #[test]
-        fn test_multiplication_commutative(a in arb_bpoly(), b in arb_bpoly()) {
+        fn test_bpoly_multiplication_commutative(a in arb_bpoly(), b in arb_bpoly()) {
             assert_eq!(a * b, b * a)
         }
     }
 
     proptest! {
         #[test]
-        fn test_mul_one_identity(a in arb_bpoly()) {
+        fn test_bpoly_mul_one_identity(a in arb_bpoly()) {
             assert_eq!(a * BPoly::one(), (BPoly::zero(), a))
         }
     }
 
+    proptest! {
+        #[test]
+        fn test_gf128_multiplication_commutative(a in arb_gf128(), b in arb_gf128()) {
+            assert_eq!(a * b, b * a);
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn test_gf128_multiplication_associative(a in arb_gf128(), b in arb_gf128(), c in arb_gf128()) {
+            assert_eq!(a * (b * c), (a * b) * c);
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn test_gf128_mul_one_identity(a in arb_gf128()) {
+            assert_eq!(a * GF128::one(), a);
+        }
+    }
+
     #[test]
-    fn test_one_plus_one_is_zero() {
+    fn test_bpoly_one_plus_one_is_zero() {
         let one = BPoly::<4>::one();
         assert_eq!(one + one, BPoly::zero())
     }
 
     #[test]
-    fn test_z_times_z_is_z_squared() {
+    fn test_bpoly_z_times_z_is_z_squared() {
         let z = BPoly::<4> { data: [2, 0, 0, 0] };
         let z2 = BPoly::<4> { data: [4, 0, 0, 0] };
 
         assert_eq!(z * z, (BPoly::zero(), z2))
+    }
+
+    #[test]
+    fn test_gf128_z127_times_z() {
+        let z127 = GF128(BPoly { data: [0, 1 << 63] });
+        let z = GF128(BPoly { data: [2, 0] });
+        let expected = GF128(BPoly {
+            data: [1 | (1 << 1) | (1 << 2) | (1 << 7), 0],
+        });
+        assert_eq!(z * z127, expected);
     }
 }
