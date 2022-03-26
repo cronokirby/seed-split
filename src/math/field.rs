@@ -206,6 +206,95 @@ impl Field for GF128 {
     }
 }
 
+#[derive(Clone, Copy, Debug)]
+// Only implement equality for tests. This is to avoid the temptation to introduce
+// a timing leak through equality comparison.
+#[cfg_attr(test, derive(PartialEq))]
+pub struct GF256(BPoly<4>);
+
+impl GF256 {
+    fn reduce((hi, mut lo): (BPoly<4>, BPoly<4>)) -> Self {
+        // The irreducible polynomial is z^256 + z^10 + z^5 + z^2 + 1
+        for i in 0..4 {
+            lo[i] ^= (hi[i] << 10) ^ (hi[i] << 5) ^ (hi[i] << 2) ^ hi[i];
+            if i > 0 {
+                lo[i] ^=
+                    (hi[i - 1] >> (64 - 10)) ^ (hi[i - 1] >> (64 - 5)) ^ (hi[i - 1] >> (64 - 2));
+            }
+        }
+        // The top value has at most 7 set bits, so we can safely include it as usual
+        let top = (hi[3] >> (64 - 10)) ^ (hi[3] >> (64 - 5)) ^ (hi[3] >> (64 - 2));
+        lo[0] ^= (top << 10) ^ (top << 5) ^ (top << 2) ^ top;
+        GF256(lo)
+    }
+}
+
+impl ops::Add for GF256 {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        let mut out = self;
+        out += rhs;
+        out
+    }
+}
+
+impl ops::AddAssign for GF256 {
+    fn add_assign(&mut self, rhs: Self) {
+        self.0 += rhs.0;
+    }
+}
+
+impl ops::Neg for GF256 {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        self
+    }
+}
+
+impl ops::Sub for GF256 {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        self + -rhs
+    }
+}
+
+impl ops::SubAssign for GF256 {
+    fn sub_assign(&mut self, rhs: Self) {
+        *self += -rhs;
+    }
+}
+
+impl ops::Mul for GF256 {
+    type Output = Self;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        Self::reduce(self.0 * rhs.0)
+    }
+}
+
+impl ops::MulAssign for GF256 {
+    fn mul_assign(&mut self, rhs: Self) {
+        *self = *self * rhs;
+    }
+}
+
+impl Field for GF256 {
+    fn inverse(self) -> Self {
+        exp_two_count_minus_two(256, Self::one(), self)
+    }
+
+    fn one() -> Self {
+        Self(BPoly::one())
+    }
+
+    fn zero() -> Self {
+        Self(BPoly::zero())
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -222,6 +311,13 @@ mod test {
     prop_compose! {
         fn arb_gf128()(data in any::<[u64;2]>()) -> GF128 {
             GF128(BPoly { data })
+        }
+    }
+
+    // We can generate an arbitrary element just by choosing random bits
+    prop_compose! {
+        fn arb_gf256()(data in any::<[u64;4]>()) -> GF256 {
+            GF256(BPoly { data })
         }
     }
 
@@ -288,6 +384,36 @@ mod test {
         fn test_gf128_mul_inverse_is_one(a in arb_gf128()) {
             if a != GF128::zero() {
                 assert_eq!(a * a.inverse(), GF128::one());
+            }
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn test_gf256_multiplication_commutative(a in arb_gf256(), b in arb_gf256()) {
+            assert_eq!(a * b, b * a);
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn test_gf256_multiplication_associative(a in arb_gf256(), b in arb_gf256(), c in arb_gf256()) {
+            assert_eq!(a * (b * c), (a * b) * c);
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn test_gf256_mul_one_identity(a in arb_gf256()) {
+            assert_eq!(a * GF256::one(), a);
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn test_gf256_mul_inverse_is_one(a in arb_gf256()) {
+            if a != GF256::zero() {
+                assert_eq!(a * a.inverse(), GF256::one());
             }
         }
     }
