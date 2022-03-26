@@ -39,9 +39,9 @@ impl From<u8> for Index {
     }
 }
 
-impl Into<u8> for Index {
-    fn into(self) -> u8 {
-        self.0
+impl From<Index> for u8 {
+    fn from(x: Index) -> Self {
+        x.0
     }
 }
 
@@ -58,7 +58,7 @@ impl Sharing {
     }
 }
 
-pub fn share<F: field::Field, R: RngCore + CryptoRng>(
+pub fn split<F: field::Field, R: RngCore + CryptoRng>(
     rng: &mut R,
     secret: F,
     sharing: Sharing,
@@ -124,7 +124,7 @@ mod test {
         let mut rng = &mut OsRng;
         let secret = GF128::random(&mut rng);
         let sharing = Sharing::new(5, 5);
-        let shares = share(&mut rng, secret, sharing);
+        let shares = split(&mut rng, secret, sharing);
         let reconstructed = reconstruct(&shares);
         assert_eq!(secret, reconstructed);
     }
