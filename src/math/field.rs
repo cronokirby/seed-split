@@ -9,11 +9,20 @@ pub trait Field:
     Copy + ops::Add + ops::AddAssign + ops::Sub + ops::SubAssign + ops::Neg + ops::Mul + ops::MulAssign
 {
     /// Return the multiplicative inverse of this element.
-    fn invert(self) -> Self;
+    fn inverse(self) -> Self;
     /// Return the multlicative unit in this field.
     fn one() -> Self;
     /// Return the additive identity in the field.
     fn zero() -> Self;
+}
+
+fn exp_two_count_minus_two<M: Copy + ops::MulAssign>(count: usize, mut acc: M, x: M) -> M {
+    for _ in 0..(count - 1) {
+        acc *= acc;
+        acc *= x;
+    }
+    acc *= acc;
+    acc
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -115,14 +124,6 @@ impl<const N: usize> ops::Mul for BPoly<N> {
 pub struct GF128(BPoly<2>);
 
 impl GF128 {
-    pub fn one() -> Self {
-        Self(BPoly::one())
-    }
-
-    pub fn zero() -> Self {
-        Self(BPoly::zero())
-    }
-
     fn reduce((hi, mut lo): (BPoly<2>, BPoly<2>)) -> Self {
         // The irreducible polynomial is z^128 + z^7 + z^2 + z + 1
         for i in 0..2 {
@@ -188,6 +189,20 @@ impl ops::Mul for GF128 {
 impl ops::MulAssign for GF128 {
     fn mul_assign(&mut self, rhs: Self) {
         *self = *self * rhs;
+    }
+}
+
+impl Field for GF128 {
+    fn inverse(self) -> Self {
+        exp_two_count_minus_two(128, Self::one(), self)
+    }
+
+    fn one() -> Self {
+        Self(BPoly::one())
+    }
+
+    fn zero() -> Self {
+        Self(BPoly::zero())
     }
 }
 
@@ -265,6 +280,15 @@ mod test {
         #[test]
         fn test_gf128_mul_one_identity(a in arb_gf128()) {
             assert_eq!(a * GF128::one(), a);
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn test_gf128_mul_inverse_is_one(a in arb_gf128()) {
+            if a != GF128::zero() {
+                assert_eq!(a * a.inverse(), GF128::one());
+            }
         }
     }
 
