@@ -102,8 +102,69 @@ fn split(threshold: u8, count: u8) -> Result<(), Box<dyn Error>> {
     }
 }
 
+fn parse_indexed_mnemonic(s: &str) -> Result<(u8, bip39::Mnemonic), Box<dyn Error>> {
+    let space_position = s
+        .chars()
+        .position(|c| c == ' ')
+        .ok_or(Box::new(MainError("invalid share format".into())))?;
+    let index: u8 = s[..space_position].parse()?;
+    if index < 1 {
+        return Err(Box::new(MainError("share index must be >= 1".into())));
+    }
+    let mnemonic = bip39::Mnemonic::parse(&s[space_position + 1..])?;
+    Ok((index - 1, mnemonic))
+}
+
 fn combine(threshold: u8) -> Result<(), Box<dyn Error>> {
-    Ok(())
+    if threshold < 1 {
+        return Err(Box::new(MainError("threshold must be at least 1".into())));
+    }
+    let mut parsed: Vec<(u8, ([u8; 33], usize))> = Vec::with_capacity(threshold as usize);
+    let mut buf = String::new();
+    for _ in 0..threshold {
+        buf.clear();
+        io::stdin().read_line(&mut buf)?;
+        let (index, mnemonic) = parse_indexed_mnemonic(&buf)?;
+        parsed.push((index, mnemonic.to_entropy_array()));
+    }
+    let (_, (_, size)) = parsed[0];
+    if !parsed.iter().all(|(_, (_, size2))| *size2 == size) {
+        return Err(Box::new(MainError(
+            "seed phrases have inconsistent sizes".into(),
+        )));
+    }
+    if size <= 16 {
+        let mut shares: Vec<(lagrange::Index, field::GF128)> =
+            Vec::with_capacity(threshold as usize);
+        for (i, (arr, _)) in parsed {
+            let mut data = [0u8; 16];
+            data[..size].copy_from_slice(&arr[..size]);
+            let fel = field::GF128::from(data);
+            shares.push((i.into(), fel));
+        }
+        let secret_data: [u8; 16] = lagrange::reconstruct(&shares).into();
+        let mnemonic = bip39::Mnemonic::from_entropy(&secret_data).unwrap();
+        println!("Reconstructed:\n{}", mnemonic);
+        Ok(())
+    } else if size <= 32 {
+        let mut shares: Vec<(lagrange::Index, field::GF256)> =
+            Vec::with_capacity(threshold as usize);
+        for (i, (arr, _)) in parsed {
+            let mut data = [0u8; 32];
+            data[..size].copy_from_slice(&arr[..size]);
+            let fel = field::GF256::from(data);
+            shares.push((i.into(), fel));
+        }
+        let secret_data: [u8; 32] = lagrange::reconstruct(&shares).into();
+        let mnemonic = bip39::Mnemonic::from_entropy(&secret_data).unwrap();
+        println!("Reconstructed:\n{}", mnemonic);
+        Ok(())
+    } else {
+        Err(Box::new(MainError(format!(
+            "excessive seed length: {} bytes",
+            size
+        ))))
+    }
 }
 
 fn main() {
