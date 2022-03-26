@@ -1,4 +1,5 @@
 use std::ops;
+use subtle::{Choice, ConditionallySelectable};
 
 /// Represents some kind of field.
 ///
@@ -44,6 +45,16 @@ impl<const N: usize> ops::Index<usize> for BPoly<N> {
 impl<const N: usize> ops::IndexMut<usize> for BPoly<N> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         &mut self.data[index]
+    }
+}
+
+impl<const N: usize> ConditionallySelectable for BPoly<N> {
+    fn conditional_select(a: &Self, b: &Self, choice: Choice) -> Self {
+        let mut out = BPoly::zero();
+        for i in 0..N {
+            out[i] = u64::conditional_select(&a[i], &b[i], choice);
+        }
+        out
     }
 }
 
@@ -97,14 +108,16 @@ impl<const N: usize> ops::Mul for BPoly<N> {
 
         for k in (0..64).rev() {
             for j in 0..N {
-                if ((self[j] >> k) & 1) != 1 {
-                    continue;
-                }
+                let to_add = Self::conditional_select(
+                    &Self::zero(),
+                    &rhs,
+                    Choice::from(((self[j] >> k) & 1) as u8),
+                );
                 // Hopefully all of this can get inlined
                 let mut view = Self::zero();
                 view.data[..(N - j)].copy_from_slice(&out_lo.data[j..]);
                 view.data[(N - j)..].copy_from_slice(&out_hi.data[..j]);
-                view += rhs;
+                view += to_add;
                 out_lo.data[j..].copy_from_slice(&view.data[..(N - j)]);
                 out_hi.data[..j].copy_from_slice(&view.data[(N - j)..]);
             }
