@@ -1,5 +1,7 @@
 mod math;
+use rand_core::{OsRng, RngCore};
 use structopt::StructOpt;
+use bip39;
 
 #[derive(Debug, StructOpt)]
 #[structopt(
@@ -26,7 +28,13 @@ enum Opt {
     },
 }
 
-fn random() {}
+fn random() {
+    let mut rng = OsRng;
+    let mut entropy_bytes = [0u8; 16];
+    rng.fill_bytes(&mut entropy_bytes);
+    let seed_phrase = bip39::Mnemonic::from_entropy(&entropy_bytes).expect("failed to generate mnemonic from entropy");
+    println!("{}", seed_phrase);
+}
 
 fn split(treshold: u8, count: u8) {}
 
