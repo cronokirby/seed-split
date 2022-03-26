@@ -8,8 +8,12 @@ use std::ops;
 pub trait Field:
     Copy + ops::Add + ops::AddAssign + ops::Sub + ops::SubAssign + ops::Neg + ops::Mul + ops::MulAssign
 {
-    /// Return the multiplicative inverse of this element
+    /// Return the multiplicative inverse of this element.
     fn invert(self) -> Self;
+    /// Return the multlicative unit in this field.
+    fn one() -> Self;
+    /// Return the additive identity in the field.
+    fn zero() -> Self;
 }
 
 #[derive(Clone, Copy, Debug)]
