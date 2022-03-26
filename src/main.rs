@@ -24,7 +24,11 @@ impl Error for MainError {}
 )]
 enum Opt {
     /// Generate a random seed phrase.
-    Random,
+    Random {
+        /// If set, generate a 256 bit seed phrase instead.
+        #[structopt(long = "long")]
+        long: bool,
+    },
     /// Split a seed phrase into multiple shares.
     Split {
         /// The number of shares needed to recreate the seed.
@@ -42,11 +46,18 @@ enum Opt {
     },
 }
 
-fn random() -> Result<(), Box<dyn Error>> {
-    let mut entropy_bytes = [0u8; 16];
-    OsRng.fill_bytes(&mut entropy_bytes);
-    let seed_phrase = bip39::Mnemonic::from_entropy(&entropy_bytes)
-        .expect("failed to generate mnemonic from entropy");
+fn random(long: bool) -> Result<(), Box<dyn Error>> {
+    let seed_phrase = if long {
+        let mut entropy_bytes = [0u8; 32];
+        OsRng.fill_bytes(&mut entropy_bytes);
+        bip39::Mnemonic::from_entropy(&entropy_bytes)
+            .expect("failed to generate mnemonic from entropy")
+    } else {
+        let mut entropy_bytes = [0u8; 16];
+        OsRng.fill_bytes(&mut entropy_bytes);
+        bip39::Mnemonic::from_entropy(&entropy_bytes)
+            .expect("failed to generate mnemonic from entropy")
+    };
     println!("{}", seed_phrase);
     Ok(())
 }
@@ -169,7 +180,7 @@ fn combine(threshold: u8) -> Result<(), Box<dyn Error>> {
 
 fn main() {
     let res = match Opt::from_args() {
-        Opt::Random => random(),
+        Opt::Random { long } => random(long),
         Opt::Split { threshold, count } => split(threshold, count),
         Opt::Combine { threshold } => combine(threshold),
     };
