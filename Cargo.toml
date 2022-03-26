@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 rand_core="0.6.3"
 subtle="2.4.1"
+structopt="0.3.26"
 
 [dev-dependencies]
 proptest = "1.0.0"
