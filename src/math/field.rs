@@ -111,6 +111,23 @@ impl<const N: usize> ops::Mul for BPoly<N> {
 #[derive(Clone, Copy, Debug)]
 pub struct GF128(BPoly<2>);
 
+impl GF128 {
+    fn reduce((hi, mut lo): (BPoly<2>, BPoly<2>)) -> Self {
+        // The irreducible polynomial is z^128 + z^7 + z^2 + z + 1
+        for i in 0..2 {
+            lo[i] ^= (hi[i] << 7) ^ (hi[i] << 2) ^ (hi[i] << 1) ^ hi[i];
+            if i > 0 {
+                lo[i] ^=
+                    (hi[i - 1] >> (64 - 7)) ^ (hi[i - 1] >> (64 - 2)) ^ (hi[i - 1] >> (64 - 1));
+            }
+        }
+        // The top value has at most 7 set bits, so we can safely include it as usual
+        let top = (hi[1] >> (64 - 7)) ^ (hi[1] >> (64 - 2)) ^ (hi[1] >> (64 - 1));
+        lo[0] ^= (top << 7) ^ (top << 2) ^ (top << 1) ^ top;
+        GF128(lo)
+    }
+}
+
 impl ops::Add for GF128 {
     type Output = Self;
 
@@ -146,6 +163,20 @@ impl ops::Sub for GF128 {
 impl ops::SubAssign for GF128 {
     fn sub_assign(&mut self, rhs: Self) {
         *self += -rhs;
+    }
+}
+
+impl ops::Mul for GF128 {
+    type Output = Self;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        Self::reduce(self.0 * rhs.0)
+    }
+}
+
+impl ops::MulAssign for GF128 {
+    fn mul_assign(&mut self, rhs: Self) {
+        *self = *self * rhs;
     }
 }
 
