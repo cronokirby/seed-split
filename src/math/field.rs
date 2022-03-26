@@ -1,5 +1,17 @@
 use std::ops;
 
+/// Represents some kind of field.
+///
+/// We require addition and multiplication, along with inversion.
+///
+/// We require copy mainly for convenience.
+pub trait Field:
+    Copy + ops::Add + ops::AddAssign + ops::Sub + ops::SubAssign + ops::Neg + ops::Mul + ops::MulAssign
+{
+    /// Return the multiplicative inverse of this element
+    fn invert(self) -> Self;
+}
+
 #[derive(Clone, Copy, Debug)]
 // Only implement equality for tests. This is to avoid the temptation to introduce
 // a timing leak through equality comparison.
