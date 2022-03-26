@@ -8,7 +8,14 @@ use subtle::{Choice, ConditionallySelectable};
 ///
 /// We require copy mainly for convenience.
 pub trait Field:
-    Copy + ops::Add + ops::AddAssign + ops::Sub + ops::SubAssign + ops::Neg + ops::Mul + ops::MulAssign
+    Copy
+    + ops::Add<Output = Self>
+    + ops::AddAssign
+    + ops::Sub<Output = Self>
+    + ops::SubAssign
+    + ops::Neg<Output = Self>
+    + ops::Mul<Output = Self>
+    + ops::MulAssign
 {
     /// Return the multiplicative inverse of this element.
     fn inverse(self) -> Self;
