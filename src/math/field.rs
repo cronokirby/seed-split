@@ -1,3 +1,4 @@
+use rand_core::RngCore;
 use std::ops;
 use subtle::{Choice, ConditionallySelectable};
 
@@ -15,6 +16,7 @@ pub trait Field:
     fn one() -> Self;
     /// Return the additive identity in the field.
     fn zero() -> Self;
+    fn random<R: RngCore>(rng: &mut R) -> Self;
 }
 
 fn exp_two_count_minus_two<M: Copy + ops::MulAssign>(count: usize, mut acc: M, x: M) -> M {
@@ -217,6 +219,32 @@ impl Field for GF128 {
     fn zero() -> Self {
         Self(BPoly::zero())
     }
+
+    fn random<R: RngCore>(rng: &mut R) -> Self {
+        let mut buf = [0; 16];
+        rng.fill_bytes(&mut buf);
+        Self::from(buf)
+    }
+}
+
+impl Into<[u8; 16]> for GF128 {
+    fn into(self) -> [u8; 16] {
+        let mut out = [0; 16];
+        for i in 0..2 {
+            out[8 * i..8 * (i + 1)].copy_from_slice(&self.0[i].to_le_bytes())
+        }
+        out
+    }
+}
+
+impl From<[u8; 16]> for GF128 {
+    fn from(data: [u8; 16]) -> Self {
+        let mut out = Self::zero();
+        for (i, chunk) in data.chunks_exact(8).enumerate() {
+            out.0[i] = u64::from_le_bytes(chunk.try_into().unwrap());
+        }
+        out
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -305,6 +333,32 @@ impl Field for GF256 {
 
     fn zero() -> Self {
         Self(BPoly::zero())
+    }
+
+    fn random<R: RngCore>(rng: &mut R) -> Self {
+        let mut buf = [0; 32];
+        rng.fill_bytes(&mut buf);
+        Self::from(buf)
+    }
+}
+
+impl Into<[u8; 32]> for GF256 {
+    fn into(self) -> [u8; 32] {
+        let mut out = [0; 32];
+        for i in 0..4 {
+            out[8 * i..8 * (i + 1)].copy_from_slice(&self.0[i].to_le_bytes())
+        }
+        out
+    }
+}
+
+impl From<[u8; 32]> for GF256 {
+    fn from(data: [u8; 32]) -> Self {
+        let mut out = Self::zero();
+        for (i, chunk) in data.chunks_exact(8).enumerate() {
+            out.0[i] = u64::from_le_bytes(chunk.try_into().unwrap());
+        }
+        out
     }
 }
 

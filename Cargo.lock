@@ -215,6 +215,7 @@ name = "seed-split"
 version = "0.1.0"
 dependencies = [
  "proptest",
+ "rand_core",
  "subtle",
 ]
 
