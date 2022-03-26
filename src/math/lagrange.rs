@@ -33,6 +33,18 @@ impl Index {
     }
 }
 
+impl From<u8> for Index {
+    fn from(x: u8) -> Self {
+        Index(x)
+    }
+}
+
+impl Into<u8> for Index {
+    fn into(self) -> u8 {
+        self.0
+    }
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct Sharing {
     threshold: u8,
@@ -43,14 +55,6 @@ impl Sharing {
     pub fn new(threshold: u8, count: u8) -> Self {
         debug_assert!(threshold > 0 && threshold <= count);
         Self { threshold, count }
-    }
-
-    pub fn validate_index(&self, index: u8) -> Option<Index> {
-        if index < self.count {
-            Some(Index(index))
-        } else {
-            None
-        }
     }
 }
 
@@ -67,4 +71,61 @@ pub fn share<F: field::Field, R: RngCore + CryptoRng>(
         acc.push((index, f_index))
     }
     acc
+}
+
+struct EvaluationPoints<F> {
+    points: Vec<F>,
+    heights: Vec<F>,
+}
+
+impl<F: field::Field> EvaluationPoints<F> {
+    fn lagrange_coefficient(&self, j: usize) -> F {
+        let mut top = F::one();
+        let mut bot = F::one();
+        for (i, &a_i) in self.points.iter().enumerate() {
+            if i == j {
+                continue;
+            }
+            top *= a_i;
+            bot *= a_i - self.points[j];
+        }
+        top * bot.inverse()
+    }
+
+    fn reconstruct_zero(&self) -> F {
+        let mut out = F::zero();
+        for (j, &f_j) in self.heights.iter().enumerate() {
+            out += self.lagrange_coefficient(j) * f_j;
+        }
+        out
+    }
+
+    fn from_shares(shares: &[(Index, F)]) -> Self {
+        let points = shares.iter().map(|(i, _)| i.to_field()).collect();
+        let heights = shares.iter().map(|(_, f)| *f).collect();
+        Self { points, heights }
+    }
+}
+
+pub fn reconstruct<F: field::Field>(shares: &[(Index, F)]) -> F {
+    EvaluationPoints::from_shares(shares).reconstruct_zero()
+}
+
+#[cfg(test)]
+mod test {
+    use crate::math::field::Field;
+
+    use super::*;
+    use field::GF128;
+    use rand_core::OsRng;
+
+    #[test]
+    fn test_share_reconstruction() {
+        let mut rng = &mut OsRng;
+        let secret = GF128::random(&mut rng);
+        let sharing = Sharing::new(5, 5);
+        let shares = share(&mut rng, secret, sharing);
+        let reconstructed = reconstruct(&shares);
+        assert_eq!(secret, reconstructed);
+    }
 }
