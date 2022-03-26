@@ -16,6 +16,7 @@ pub trait Field:
     + ops::Neg<Output = Self>
     + ops::Mul<Output = Self>
     + ops::MulAssign
+    + From<u64>
 {
     /// Return the multiplicative inverse of this element.
     fn inverse(self) -> Self;
@@ -214,6 +215,12 @@ impl ops::MulAssign for GF128 {
     }
 }
 
+impl From<u64> for GF128 {
+    fn from(x: u64) -> Self {
+        Self(BPoly { data: [x, 0] })
+    }
+}
+
 impl Field for GF128 {
     fn inverse(self) -> Self {
         exp_two_count_minus_two(128, Self::one(), self)
@@ -326,6 +333,12 @@ impl ops::Mul for GF256 {
 impl ops::MulAssign for GF256 {
     fn mul_assign(&mut self, rhs: Self) {
         *self = *self * rhs;
+    }
+}
+
+impl From<u64> for GF256 {
+    fn from(x: u64) -> Self {
+        Self(BPoly { data: [x, 0, 0, 0] })
     }
 }
 
