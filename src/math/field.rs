@@ -289,7 +289,7 @@ impl GF256 {
                     (hi[i - 1] >> (64 - 10)) ^ (hi[i - 1] >> (64 - 5)) ^ (hi[i - 1] >> (64 - 2));
             }
         }
-        // The top value has at most 7 set bits, so we can safely include it as usual
+        // The top value has at most 10 set bits, so we can safely include it as usual
         let top = (hi[3] >> (64 - 10)) ^ (hi[3] >> (64 - 5)) ^ (hi[3] >> (64 - 2));
         lo[0] ^= (top << 10) ^ (top << 5) ^ (top << 2) ^ top;
         GF256(lo)
