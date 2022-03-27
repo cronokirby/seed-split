@@ -2,6 +2,8 @@
 
 A tool to split seed phrases into shares.
 
+![](./cover.jpg)
+
 For example, you can generate a seed phrase:
 
 ```
