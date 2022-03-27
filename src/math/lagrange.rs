@@ -1,11 +1,14 @@
 use super::field;
 use rand_core::{CryptoRng, RngCore};
 
+/// Represents a polynomial with coefficients over some field.
 struct Polynomial<F> {
+    /// The coefficients, from low order to high order.
     coefficients: Vec<F>,
 }
 
 impl<F: field::Field> Polynomial<F> {
+    /// Return a polynomial with random coefficients, aside from the first.
     fn random<R: RngCore + CryptoRng>(rng: &mut R, zero_value: F, degree: usize) -> Self {
         let mut coefficients = Vec::with_capacity(degree + 1);
         coefficients.push(zero_value);
@@ -15,6 +18,7 @@ impl<F: field::Field> Polynomial<F> {
         Polynomial { coefficients }
     }
 
+    /// Evaluate this polynomial, considered as a function.
     fn evaluate(&self, at: F) -> F {
         let mut acc = *self.coefficients.last().unwrap();
         for &c in self.coefficients.iter().rev().skip(1) {
@@ -24,6 +28,9 @@ impl<F: field::Field> Polynomial<F> {
     }
 }
 
+/// Represents an index of a given share.
+/// 
+/// This is really just a wrapper over a u8.
 #[derive(Clone, Copy, Debug)]
 pub struct Index(u8);
 
@@ -45,6 +52,10 @@ impl From<Index> for u8 {
     }
 }
 
+/// Represents a configurationg for secret sharing.
+/// 
+/// This holds a threshold, as well as the total number of shares.
+/// This always holds a valid configuration.
 #[derive(Clone, Copy, Debug)]
 pub struct Sharing {
     threshold: u8,
@@ -52,12 +63,19 @@ pub struct Sharing {
 }
 
 impl Sharing {
+    /// Create a new sharing from a threshold and a count.
+    /// 
+    /// The threshold must be greater than 0, and <= count.
     pub fn new(threshold: u8, count: u8) -> Self {
         debug_assert!(threshold > 0 && threshold <= count);
         Self { threshold, count }
     }
 }
 
+/// Split a secret into multiple shares.
+/// 
+/// This function will return different shares on each invocation, using
+/// the provided random generator.
 pub fn split<F: field::Field, R: RngCore + CryptoRng>(
     rng: &mut R,
     secret: F,
@@ -73,6 +91,7 @@ pub fn split<F: field::Field, R: RngCore + CryptoRng>(
     acc
 }
 
+/// A convenience struct to hold the points we've evaluated the polynomial at.
 struct EvaluationPoints<F> {
     points: Vec<F>,
     heights: Vec<F>,
@@ -92,6 +111,7 @@ impl<F: field::Field> EvaluationPoints<F> {
         top * bot.inverse()
     }
 
+    // Reconstruct the zero coefficient of this polynomial
     fn reconstruct_zero(&self) -> F {
         let mut out = F::zero();
         for (j, &f_j) in self.heights.iter().enumerate() {
@@ -107,6 +127,10 @@ impl<F: field::Field> EvaluationPoints<F> {
     }
 }
 
+/// Reconstruct a secret from a combination of shares.
+/// 
+/// If insufficient shares are provided, then this function will silently
+/// return an incorrect result.
 pub fn reconstruct<F: field::Field>(shares: &[(Index, F)]) -> F {
     EvaluationPoints::from_shares(shares).reconstruct_zero()
 }
