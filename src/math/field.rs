@@ -24,9 +24,11 @@ pub trait Field:
     fn one() -> Self;
     /// Return the additive identity in the field.
     fn zero() -> Self;
+    /// Create a random element of this field.
     fn random<R: RngCore>(rng: &mut R) -> Self;
 }
 
+// This function is useful to do inversion in a field of size 2^count.
 fn exp_two_count_minus_two<M: Copy + ops::MulAssign>(count: usize, mut acc: M, x: M) -> M {
     for _ in 0..(count - 1) {
         acc *= acc;
@@ -36,6 +38,10 @@ fn exp_two_count_minus_two<M: Copy + ops::MulAssign>(count: usize, mut acc: M, x
     acc
 }
 
+/// Represents a binary polynomial with 64 * N coefficients.
+/// 
+/// This is useful as an intermediate building block towards building binary
+/// fields, which use polynomials for their arithmetic.
 #[derive(Clone, Copy, Debug)]
 // Only implement equality for tests. This is to avoid the temptation to introduce
 // a timing leak through equality comparison.
@@ -80,6 +86,10 @@ impl<const N: usize> BPoly<N> {
         Self { data }
     }
 
+    /// Shift this polynomial to the left by count.
+    /// 
+    /// We also take a starting value, which will be put into the empty low bits
+    /// of the first limb.
     fn shift(&mut self, start: u64, count: usize) -> u64 {
         let mut top = start;
         for x in &mut self.data {
@@ -140,6 +150,7 @@ impl<const N: usize> ops::Mul for BPoly<N> {
     }
 }
 
+/// Represents the binary field GF(2^128).
 #[derive(Clone, Copy, Debug)]
 // Only implement equality for tests. This is to avoid the temptation to introduce
 // a timing leak through equality comparison.
@@ -261,6 +272,7 @@ impl From<[u8; 16]> for GF128 {
     }
 }
 
+/// Represents the binary field GF(2^256).
 #[derive(Clone, Copy, Debug)]
 // Only implement equality for tests. This is to avoid the temptation to introduce
 // a timing leak through equality comparison.
